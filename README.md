@@ -7,6 +7,8 @@ Das Projekt dient mir hauptsächlich dazu, neue Technologien auszuprobieren und 
 
 ### Backend
 - **Java**
+- **Spring-Boot**
+- **PostgresSQL** 
 
 ### Frontend
 - **Vite**
