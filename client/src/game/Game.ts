@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { GameScene } from './scenes/GameScene';
+import { WeaponSelectionScene } from './scenes/WeaponSelectionScene';
 
 export class Game extends Phaser.Game {
   constructor() {
@@ -12,11 +13,11 @@ export class Game extends Phaser.Game {
       physics: {
         default: 'arcade',
         arcade: {
-          gravity: { y: 0 },
+          gravity: { x: 0, y: 0 },
           debug: false
         }
       },
-      scene: [GameScene],
+      scene: [WeaponSelectionScene, GameScene],
       scale: {
         mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH
@@ -26,4 +27,5 @@ export class Game extends Phaser.Game {
     super(config);
   }
 }
+
 

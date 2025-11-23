@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { Player } from './Player';
+import { ParticleEffects } from '../effects/ParticleEffects';
 
 export class Enemy extends Phaser.Physics.Arcade.Sprite {
   private health: number = 30;
