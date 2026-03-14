@@ -17,6 +17,11 @@ export class Game extends Phaser.Game {
           debug: false
         }
       },
+      input: {
+        mouse: {
+          preventDefaultMove: false
+        }
+      },
       scene: [WeaponSelectionScene, GameScene],
       scale: {
         mode: Phaser.Scale.FIT,

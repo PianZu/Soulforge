@@ -16,6 +16,21 @@ Das Projekt dient mir hauptsächlich dazu, neue Technologien auszuprobieren und 
 - **Phaser**
 - **TypeScript**
 
+## Starten
+
+### Lokal (Entwicklung)
+```bash
+cd client
+npm install
+npm run dev
+```
+
+### Mit Docker
+```bash
+docker compose up --build
+```
+Die App läuft dann unter **http://localhost:3000**.
+
 ## Ziel des Projekts
 
 - Ein 2D-Roguelike mit zufällig generierten Runs

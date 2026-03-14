@@ -112,7 +112,9 @@ export class ParticleEffects {
 
   swordSwing(x: number, y: number, angle: number) {
     this.swordSwingEmitter.setPosition(x, y);
-    this.swordSwingEmitter.setAngle({ min: angle - 45, max: angle + 45 });
+    // Phaser's typing only accepts numeric angles per update, so randomize manually
+    const swingAngle = Phaser.Math.Between(angle - 45, angle + 45);
+    this.swordSwingEmitter.setAngle(swingAngle);
     this.swordSwingEmitter.explode(10);
   }
 

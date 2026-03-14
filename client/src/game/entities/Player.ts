@@ -6,17 +6,23 @@ import { ParticleEffects } from '../effects/ParticleEffects';
 export class Player extends Phaser.Physics.Arcade.Sprite {
   private health: number = 100;
   private maxHealth: number = 100;
-  private attackDamage: number = 25;
+  private lives: number = 3;
+  private readonly maxLives: number = 3;
   private attackRange: number = 60;
   private attackCooldown: number = 0;
   private attackCooldownTime: number = 500; // milliseconds
   private weaponType: WeaponType;
   private weaponVisual!: Phaser.GameObjects.Container | Phaser.GameObjects.Graphics;
-  private isAttacking: boolean = false;
   private lastDirection: { x: number; y: number } = { x: 0, y: 1 }; // Default: down
   private arrows: Phaser.GameObjects.Arc[] = [];
   private magicProjectiles: Phaser.GameObjects.Arc[] = [];
   private particleEffects!: ParticleEffects;
+  private dodgeSpeed: number = 400;
+  private dodgeDuration: number = 180;
+  private dodgeCooldownTime: number = 800;
+  private lastDodgeTime: number = -Infinity;
+  private dodging: boolean = false;
+  private invincible: boolean = false;
 
   constructor(scene: Phaser.Scene, x: number, y: number, weaponType: WeaponType = 'sword') {
     // Create texture if it doesn't exist
@@ -48,19 +54,16 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     // Set weapon properties based on type
     switch (this.weaponType) {
       case 'sword':
-        this.attackDamage = 30;
         this.attackRange = 60;
         this.attackCooldownTime = 400;
         this.createSword();
         break;
       case 'bow':
-        this.attackDamage = 25;
         this.attackRange = 300;
         this.attackCooldownTime = 300; // Schnellere Feuerrate für Bogen
         this.createBow();
         break;
       case 'magic':
-        this.attackDamage = 40;
         this.attackRange = 200;
         this.attackCooldownTime = 1000; // Langsamere Feuerrate für Magie (wegen Flächenschaden)
         this.createMagicStaff();
@@ -173,7 +176,14 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   takeDamage(amount: number) {
+    if (this.dodging || this.invincible) {
+      return;
+    }
     this.health = Math.max(0, this.health - amount);
+  }
+
+  setInvincible(value: boolean) {
+    this.invincible = value;
   }
 
   heal(amount: number) {
@@ -188,8 +198,57 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     return this.maxHealth;
   }
 
+  getLives(): number {
+    return this.lives;
+  }
+
+  getMaxLives(): number {
+    return this.maxLives;
+  }
+
+  loseLife(): number {
+    this.lives = Math.max(0, this.lives - 1);
+    return this.lives;
+  }
+
+  setFullHealth(): void {
+    this.health = this.maxHealth;
+  }
+
   isDead(): boolean {
     return this.health <= 0;
+  }
+
+  tryDodge(inputX: number, inputY: number): boolean {
+    const now = this.scene.time.now;
+    if (now - this.lastDodgeTime < this.dodgeCooldownTime || this.dodging) {
+      return false;
+    }
+
+    const direction = new Phaser.Math.Vector2(inputX, inputY);
+    if (direction.lengthSq() === 0) {
+      direction.set(this.lastDirection.x, this.lastDirection.y);
+    }
+    if (direction.lengthSq() === 0) {
+      direction.set(0, -1);
+    }
+    direction.normalize();
+
+    this.dodging = true;
+    this.lastDodgeTime = now;
+    this.lastDirection = { x: direction.x, y: direction.y };
+    this.setVelocity(direction.x * this.dodgeSpeed, direction.y * this.dodgeSpeed);
+    this.setTint(0x00ffff);
+    this.scene.time.delayedCall(this.dodgeDuration, () => {
+      this.dodging = false;
+      this.clearTint();
+    });
+
+    return true;
+  }
+
+  isDodging(): boolean {
+    return this.dodging;
   }
 
   attack(enemies: Enemy[], targetX?: number, targetY?: number) {
@@ -199,7 +258,6 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     }
 
     this.attackCooldown = now;
-    this.isAttacking = true;
 
     switch (this.weaponType) {
       case 'sword':
@@ -233,7 +291,6 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         }
       },
       onComplete: () => {
-        this.isAttacking = false;
         this.updateWeaponPosition();
       }
     });
@@ -330,7 +387,6 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       }
     });
 
-    this.isAttacking = false;
   }
 
   private attackWithMagic(enemies: Enemy[], targetX?: number, targetY?: number) {
@@ -531,7 +587,6 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       }
     });
 
-    this.isAttacking = false;
   }
 }
 

@@ -1,64 +1,139 @@
 import Phaser from 'phaser';
 import { Player } from '../entities/Player';
 
+type PauseMenuCallbacks = {
+  onResume: () => void;
+  onRestart: () => void;
+};
+
 export class GameUI {
   private healthBar!: Phaser.GameObjects.Graphics;
   private healthBarBg!: Phaser.GameObjects.Graphics;
   private healthText!: Phaser.GameObjects.Text;
+  private scoreBg!: Phaser.GameObjects.Rectangle;
   private scoreText!: Phaser.GameObjects.Text;
+  private waveText!: Phaser.GameObjects.Text;
+  private livesText!: Phaser.GameObjects.Text;
   private instructionsText!: Phaser.GameObjects.Text;
-  private gameOverPanel!: Phaser.GameObjects.Container;
   private pausePanel!: Phaser.GameObjects.Container;
   private scene: Phaser.Scene;
   private player: Player;
+  private callbacks: PauseMenuCallbacks;
+  private readonly resizeHandler: (gameSize: Phaser.Structs.Size) => void;
 
-  constructor(scene: Phaser.Scene, player: Player) {
+  constructor(scene: Phaser.Scene, player: Player, callbacks: PauseMenuCallbacks) {
     this.scene = scene;
     this.player = player;
+    this.callbacks = callbacks;
+
+    this.resizeHandler = (gameSize: Phaser.Structs.Size) => {
+      this.layoutHud(gameSize.width);
+    };
+    this.scene.scale.on('resize', this.resizeHandler);
+    this.scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.scene.scale.off('resize', this.resizeHandler);
+    });
 
     // Create score text first (includes healthText)
     this.createScoreText();
     // Then create health bar
     this.createHealthBar();
+    this.createLivesDisplay();
     // Update health after everything is initialized
     this.updateHealth(this.player.getHealth());
     this.createInstructions();
+    this.layoutHud();
   }
 
   private createHealthBar() {
-    // Background
+    const barX = 16;
+    const barY = 70;
+    const barW = 240;
+    const barH = 26;
+    const hudDepth = 2000;
+
+    // Sichtbarer Rahmen + Hintergrund (damit die Leiste immer erkennbar ist)
     this.healthBarBg = this.scene.add.graphics();
     this.healthBarBg.setScrollFactor(0);
-    this.healthBarBg.fillStyle(0x000000, 0.5);
-    this.healthBarBg.fillRect(10, 10, 200, 20);
+    this.healthBarBg.setDepth(hudDepth);
+    this.healthBarBg.fillStyle(0x1a1a1a, 0.95);
+    this.healthBarBg.fillRect(barX - 2, barY - 2, barW + 4, barH + 4);
+    this.healthBarBg.lineStyle(3, 0xffffff, 1);
+    this.healthBarBg.strokeRect(barX - 2, barY - 2, barW + 4, barH + 4);
 
-    // Health bar
     this.healthBar = this.scene.add.graphics();
     this.healthBar.setScrollFactor(0);
-  }
+    this.healthBar.setDepth(hudDepth + 1);
 
-  private createScoreText() {
-    this.scoreText = this.scene.add.text(10, 40, 'Score: 0', {
-      fontSize: '24px',
+    this.healthText = this.scene.add.text(barX + barW / 2, barY - 22, '100 / 100', {
+      fontSize: '20px',
       color: '#ffffff',
       fontFamily: 'Arial',
       fontStyle: 'bold',
       stroke: '#000000',
       strokeThickness: 3
     });
-    this.scoreText.setScrollFactor(0);
-
-    // Health text
-    this.healthText = this.scene.add.text(220, 12, '100/100', {
-      fontSize: '16px',
-      color: '#ffffff',
-      fontFamily: 'Arial'
-    });
+    this.healthText.setOrigin(0.5, 0);
     this.healthText.setScrollFactor(0);
+    this.healthText.setDepth(hudDepth + 2);
+  }
+
+  private createScoreText() {
+    const cam = this.scene.cameras.main;
+    const cx = cam.width / 2;
+    const hudDepth = 2000;
+    this.scoreBg = this.scene.add.rectangle(cx, 50, 300, 75, 0x1a1a1a, 0.95);
+    this.scoreBg.setStrokeStyle(3, 0xffffff, 1);
+    this.scoreBg.setScrollFactor(0);
+    this.scoreBg.setDepth(hudDepth);
+
+    this.scoreText = this.scene.add.text(cx, 18, 'Score: 0', {
+      fontSize: '34px',
+      color: '#ffffff',
+      fontFamily: 'Arial',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 5
+    });
+    this.scoreText.setOrigin(0.5, 0);
+    this.scoreText.setScrollFactor(0);
+    this.scoreText.setDepth(hudDepth + 1);
+
+    this.waveText = this.scene.add.text(cx, 58, 'Wave 1', {
+      fontSize: '24px',
+      color: '#ffd700',
+      fontFamily: 'Arial',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 3
+    });
+    this.waveText.setOrigin(0.5, 0);
+    this.waveText.setScrollFactor(0);
+    this.waveText.setDepth(hudDepth + 1);
+  }
+
+  private createLivesDisplay() {
+    const hudDepth = 2000;
+    const livesBg = this.scene.add.rectangle(70, 28, 140, 36, 0x1a1a1a, 0.95);
+    livesBg.setStrokeStyle(3, 0xff4444, 1);
+    livesBg.setScrollFactor(0);
+    livesBg.setDepth(hudDepth);
+
+    this.livesText = this.scene.add.text(70, 14, 'Leben: ❤❤❤', {
+      fontSize: '22px',
+      color: '#ffffff',
+      fontFamily: 'Arial',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 3
+    });
+    this.livesText.setOrigin(0.5, 0);
+    this.livesText.setScrollFactor(0);
+    this.livesText.setDepth(hudDepth + 1);
   }
 
   private createInstructions() {
-    this.instructionsText = this.scene.add.text(10, 70, 'WASD/Arrow Keys: Move | Left Click/SPACE: Attack', {
+    this.instructionsText = this.scene.add.text(10, 102, 'WASD: Bewegen | Klick/LEER: Angriff | SHIFT: Ausweichen', {
       fontSize: '16px',
       color: '#aaaaaa',
       fontFamily: 'Arial'
@@ -77,29 +152,61 @@ export class GameUI {
 
   updateHealth(health: number) {
     const maxHealth = this.player.getMaxHealth();
-    const healthPercent = health / maxHealth;
+    const healthPercent = Math.max(0, health / maxHealth);
+    const barX = 16;
+    const barY = 70;
+    const barW = 240;
+    const barH = 26;
 
     this.healthBar.clear();
-    
-    // Health color (green to red)
-    let color = 0x00ff00; // Green
+    let color = 0x00cc00;
     if (healthPercent < 0.3) {
-      color = 0xff0000; // Red
+      color = 0xcc0000;
     } else if (healthPercent < 0.6) {
-      color = 0xffff00; // Yellow
+      color = 0xcccc00;
     }
-
     this.healthBar.fillStyle(color);
-    this.healthBar.fillRect(12, 12, 196 * healthPercent, 16);
+    this.healthBar.fillRect(barX, barY, barW * healthPercent, barH);
 
-    // Update health text (only if it exists)
     if (this.healthText) {
-      this.healthText.setText(`${Math.ceil(health)}/${maxHealth}`);
+      this.healthText.setText(`${Math.ceil(health)} / ${maxHealth}`);
     }
   }
 
   updateScore(score: number) {
     this.scoreText.setText(`Score: ${score}`);
+  }
+
+  updateWave(wave: number) {
+    if (this.waveText) {
+      this.waveText.setText(`Wave ${wave}`);
+    }
+  }
+
+  updateLives(lives: number) {
+    if (this.livesText) {
+      const hearts = lives > 0 ? '❤'.repeat(lives) : '✖';
+      this.livesText.setText(`Leben: ${hearts}`);
+    }
+  }
+
+  private layoutHud(viewWidth?: number) {
+    const w = viewWidth && viewWidth > 0
+      ? viewWidth
+      : this.scene.scale.width || this.scene.cameras.main.width;
+    const cx = w / 2;
+
+    if (this.scoreBg) {
+      this.scoreBg.setX(cx);
+    }
+    if (this.scoreText) {
+      this.scoreText.setX(cx);
+      this.scoreText.setY(18);
+    }
+    if (this.waveText) {
+      this.waveText.setX(cx);
+      this.waveText.setY(58);
+    }
   }
 
   showGameOver(finalScore: number) {
@@ -113,6 +220,7 @@ export class GameUI {
       0.7
     );
     bg.setScrollFactor(0);
+    bg.setDepth(3000);
 
     // Game Over text
     const gameOverText = this.scene.add.text(
@@ -128,6 +236,7 @@ export class GameUI {
     );
     gameOverText.setOrigin(0.5);
     gameOverText.setScrollFactor(0);
+    gameOverText.setDepth(3000);
 
     // Final score
     const scoreText = this.scene.add.text(
@@ -142,6 +251,7 @@ export class GameUI {
     );
     scoreText.setOrigin(0.5);
     scoreText.setScrollFactor(0);
+    scoreText.setDepth(3000);
 
     // Restart button
     const restartText = this.scene.add.text(
@@ -156,8 +266,10 @@ export class GameUI {
     );
     restartText.setOrigin(0.5);
     restartText.setScrollFactor(0);
+    restartText.setDepth(3000);
 
-    this.gameOverPanel = this.scene.add.container(0, 0, [bg, gameOverText, scoreText, restartText]);
+    const goContainer = this.scene.add.container(0, 0, [bg, gameOverText, scoreText, restartText]);
+    goContainer.setDepth(3000);
   }
 
   showPauseMenu(currentScore: number) {
@@ -248,8 +360,7 @@ export class GameUI {
     });
 
     continueButton.on('pointerdown', () => {
-      this.hidePauseMenu();
-      this.scene.scene.resume();
+      this.callbacks.onResume();
     });
 
     // Restart button
@@ -293,7 +404,7 @@ export class GameUI {
     });
 
     restartButton.on('pointerdown', () => {
-      this.scene.scene.start('WeaponSelectionScene');
+      this.callbacks.onRestart();
     });
 
     // Instruction text
@@ -320,6 +431,7 @@ export class GameUI {
       restartText,
       instructionText
     ]);
+    this.pausePanel.setDepth(3000);
   }
 
   hidePauseMenu() {
